@@ -1,0 +1,26 @@
+
+    #go through and save each column as a row then reconstruct
+    rowa=$(Dims | cut -f 1 )
+    cola=$(Dims | cut -f 2 )
+
+    #check dimentions
+    #Dims uses arg2, so I copied code here to use arg3 for second matrix
+    rowb=0   #number of rows
+    while read num
+    do
+        rowb=$(expr $rowb + 1)
+        oneline=$num    #this line will be used to count number of cols
+    done < $arg3 #uses arg3
+    #echo "num row is: $row"
+    colb=0   #number of columns
+    for i in $oneline   #count cols in oneline
+    do
+        colb=$(( $colb + 1 ))
+    done
+    #check to see if either size is different
+    if [[ $cola -ne $rowb ]]
+    then 
+        echo "matrix size not equal" 1>&2 #print to stderr
+        exit 3
+    fi
+

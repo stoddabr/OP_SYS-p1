@@ -1,0 +1,10 @@
+#!/bin/bash
+
+func1(){
+    echo -e "1\t2"
+}
+funct2(){
+    func1 | cat
+}
+
+funct2

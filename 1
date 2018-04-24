@@ -1,0 +1,441 @@
+#brett stoddard
+#4-10-2018
+
+#!/bin/bash
+
+#returns:
+#   0-normal, sucessful operation
+#   1-wrong number of arguments
+#   2-unreadable file
+#   3-wrong sized matrix (add, multiply)
+
+#global variables
+#arg1=$1
+#arg2=$2
+#arg3=$3
+
+#operations
+Dims(){
+#calculate number of rows and cols from $1
+    row=0   #number of rows
+    inc=1   #used to count number of rows
+    
+    while read num
+    do
+        row=$(expr $row + $inc)
+        oneline=$num    #this line will be used to count number of cols
+    done < $arg2
+    #echo "num row is: $row"
+    col=0   #number of columns
+    for i in $oneline   #count cols in oneline
+    do
+        col=$(( $col + $inc ))
+    done
+    echo -e "$row $col" #return "row col"
+}
+
+Tran(){
+    #record number of rows and columns
+    touch temp_dims
+    Dims > temp_dims
+    row=$(cat temp_dims | cut -d ' ' -f 1 )
+    col=$(cat temp_dims | cut -d ' ' -f 2 )
+    
+    #go through and save each column as a row then reconstruct
+    temp_row='temp_row'
+    temp_trans='temp_trans'
+    #transpose of a matrix, $arg2
+    touch $temp_trans
+    touch $temp_row
+    counter=1
+    let final_count=$col+1
+    while [ $counter -lt $final_count ]
+    do
+        #cut counter column out of arg2
+        cut -f$counter $arg2 > $temp_row
+        #alt version not allowed #awk -v temp=$counter '{print $temp}' $arg2 > $temp_row
+        let counter=$counter+1 #increment by 1
+        #replace newline with tabs
+        cat $temp_row | tr '\n' '\t' >> $temp_trans
+        echo "" >> $temp_trans #add newline to seperate rows
+    done
+
+    cut -f1-$row $temp_trans | cat  #remove empty extra column 
+    command rm temp_* #delete without invoking alias
+}
+
+Mean(){
+    #transpose first in order to allow for row instead of column operations
+    #rows are simplier to operate on
+    #transpose algorithem is copied from Tran 
+    
+    #go through and save each column as a row then reconstruct
+    row=$(Dims | cut -d ' ' -f 1 )
+    col=$(Dims | cut -d ' ' -f 2 )
+    
+    temp_row='temp_row'
+    temp_trans='temp_trans'
+    #transpose of a matrix, $arg2
+    touch $temp_trans
+    touch $temp_row
+    counter=1
+    let final_count=$col+1
+    while [ $counter -lt $final_count ]
+    do
+        #cut counter column out of arg2
+        cut -f$counter $arg2 > $temp_row
+        #old version not allowed #awk -v temp=$counter '{print $temp}' $arg2 > $temp_row
+        #replace newline with tabs
+        cat $temp_row | tr '\n' '\t' >> $temp_trans
+        let counter=$counter+1 #increment by 1
+        echo "" >> $temp_trans #add newline to seperate rows
+    done
+    
+    #calculate averages
+    #create temporary file
+    touch matrix_mean_temp
+    sum=0
+    while read num
+    do
+        for i in $num
+        do
+            sum=`expr $sum + $i`
+        done
+        #calculate average using given function
+        #append to temp file
+        echo -e "$(( ( sum + ( row / 2 ) * ( ( sum > 0 ) * 2 - 1 )) / row ))" >> matrix_mean_temp 
+        sum=0 #reset sum
+    done < $temp_trans
+    cat matrix_mean_temp |  tr "\n" "\t" | cut -f1-$col #replace newline with tabs to create 1xX matrix, remove extra white space
+    
+    rm matrix_mean_temp #remove temporary file
+    rm temp_* #remove temporary files from transpose alg
+}
+
+Adds(){
+    #go through and save each column as a row then reconstruct
+    rowa=$(Dims | cut -d ' ' -f 1 )
+    cola=$(Dims | cut -d ' ' -f 2 ) 
+    
+    #check dimentions
+    #Dims uses arg2, so I copied code here to use arg3 for second matrix
+    rowb=0   #number of rows
+    while read num
+    do
+        rowb=$(expr $rowb + 1)
+        oneline=$num    #this line will be used to count number of cols
+    done < $arg3 #uses arg3
+    #echo "num row is: $row"
+    colb=0   #number of columns
+    for i in $oneline   #count cols in oneline
+    do
+        colb=$(( $colb + 1 ))
+    done
+    #check to see if either size is different
+    if [[ $cola -ne $colb ]] || [[ $rowa -ne $rowb ]]
+    then 
+        echo "matrix size not equal" 1>&2 #print to stderr
+        exit 3 #return 3
+    fi
+
+    #add matricies
+    countc=1    #counter for columns, starts at 1
+    temp_col1='temp_col1' #temporary file/place for column of matrix a
+    temp_col2='temp_col2' #temp place for col of matrix b
+    temp_row1='temp_row1' #temp place for row of matrix a
+    temp_row2='temp_row2' #temp place for row of matrix b
+    temp_colF='temp_colF' #temp place for final column
+    temp_rowF='temp_rowF' #temp place for final row
+    temp_final='temp_final' #temp file for final matrix
+
+    while [ $countc -le $cola ]
+    do
+        cat "$arg2" | cut -f$countc > $temp_col1 #cut col of matrix b
+        cat "$arg3" | cut -f$countc > $temp_col2 #cut col of matrix b
+        cat $temp_col1 | tr '\n' '\t' > $temp_row1 #turn col to row
+        cat $temp_col2 | tr '\n' '\t' > $temp_row2 #turn col to row
+        countr=1
+        while [ $countr -le $rowb ]
+        do
+            numA=$( cut -f$countr $temp_row1 ) #cut index row,col
+            numB=$( cut -f$countr $temp_row2 ) #cut index row,col
+            numF=`expr $numA + $numB ` #add indicies
+            echo "$numF" >> $temp_colF
+            let countr=$countr+1 #increment row by 1
+        done
+        cat $temp_colF | tr '\n' '\t' > $temp_rowF #col -> row by replacing \n with \t
+        echo -e "" >> $temp_rowF
+        cat $temp_rowF >> $temp_final #add temp col to final
+        rm $temp_colF
+        let countc=$countc+1 #increment by 1
+    done
+    
+    cat $temp_final
+    rm temp_*
+}
+
+Mult(){
+    #go through and save each column as a row then reconstruct
+    rowa=$(Dims | cut -f 1 )
+    cola=$(Dims | cut -f 2 )
+
+    #check dimentions
+    #Dims uses arg2, so I copied code here to use arg3 for second matrix
+    rowb=0   #number of rows
+    while read num
+    do
+        rowb=$(expr $rowb + 1)
+        oneline=$num    #this line will be used to count number of cols
+    done < $arg3 #uses arg3
+    #echo "num row is: $row"
+    colb=0   #number of columns
+    for i in $oneline   #count cols in oneline
+    do
+        colb=$(( $colb + 1 ))
+    done
+    #check to see if either size is different
+    if [[ $cola -ne $rowb ]]
+    then 
+        echo "matrix size not equal" 1>&2 #print to stderr
+        exit 3
+    fi
+
+    echo "Mult() called"
+}
+
+#determine which function is being called
+#and check number of arguments
+
+if [[ $1 = dims ]]
+then
+    #confirm num arguments
+    if [[ $# -ne 2 ]] && [[ $# -ne 1 ]]
+    then
+        echo "$#"
+        echo "error-num arguments" 1>&2
+        exit 1
+    fi
+    #check to see if stdin needs to be called
+    if [[ $# = 1 ]]
+    then 
+        arg2="/dev/stdin"
+        Dims
+        exit 0 #exit program, return 0 because no input issues
+    fi
+    arg2=$2 
+    #check to see if file is readable
+    if [[ -r $arg2 ]]
+    then
+        #if correct num args & readable, call function
+        Dims
+        exit 0 #exit program, return 0 because no input issues
+    else
+        echo "file unreadable" 1>&2
+        exit 2
+    fi
+#check for transpose
+elif [[ $1 = transpose ]]
+then
+    #confirm num arguments
+    if [[ $# -ne 2 ]] && [[ $# -ne 1 ]]
+    then
+        #if wrong number of arguments, return 1 and print to stderr 
+        echo "error-num arguments" 1>&2
+        exit 1
+    fi
+    #check to see if stdin needs to be called
+    if [[ $# = 1 ]]
+    then
+        arg2='arg2'
+        cat > 'arg2'
+        Tran
+        rm "$arg2"
+        exit 0 #exit program, return 0 because no input issues
+    fi
+    arg2=$2 #set argument to to arg2 
+    #check to see if file is readable
+    if [[ -r $arg2 ]]
+    then
+        #if correct num args & readable, call function
+        Tran
+        exit 0 #exit program, return 0 because no input issues
+    else
+        echo "file unreadable" 1>&2
+        exit 2
+    fi
+#check for mean
+elif [[ $1 = mean ]]
+then
+    #confirm num arguments
+    if [[ $# -ne 2 ]] && [[ $# -ne 1 ]]
+    then
+        #if wrong number of arguments, return 1 and print to stderr 
+        echo "error-num arguments" 1>&2
+        exit 1
+    fi
+    #check to see if stdin needs to be called
+    if [[ $# = 1 ]]
+    then
+        arg2='arg2' #create file 'arg2' with "pointer" variable arg2
+        cat > $arg2 #fill arg2 with stdin
+        Mean
+        rm $arg2 #remove the arg2 file
+        exit 0 #exit program, return 0 because no input issues
+    fi
+    arg2=$2 
+    #check to see if file is readable
+    if [[ -r $arg2 ]]
+    then
+        #if correct num args & readable, call function
+        Mean
+        exit 0 #exit program, return 0 because no input issues
+    else
+        echo "file unreadable" 1>&2
+        exit 2
+    fi
+#check for add operation call
+elif [[ $1 = add ]]
+then
+    #confirm num arguments
+    if [[ $# -ne 2 ]] && [[ $# -ne 3 ]]
+    then
+        #if wrong number of arguments, return 1 and print to stderr 
+        echo "error-num arguments" 1>&2
+        exit 1
+    fi
+    #check to see if stdin needs to be called
+    if [[ $# = 2 ]]
+    then 
+        arg2=$2     #make second file variable arg2
+        arg3='arg3' #create file 'arg3' with "pointer" variable arg3
+        cat > $arg3 #fill arg3 with stdin
+        Adds
+        rm $arg3 #remove the arg2 file
+        exit 0 #exit program, return 0 because no input issues
+    fi
+    arg2=$2 #if second argument is given, use it as arg3
+    arg3=$3 #if third argument is given, use it as arg3 
+    #check to see if file is readable
+    if [[ -r $arg2 ]] && [[ -r $arg3 ]]
+    then
+        #if correct num args & readable, call function
+        Adds
+        exit 0 #exit program, return 0 because no input issues
+    else #if either file is not readable
+        echo "file unreadable" 1>&2
+        exit 2
+    fi
+#check for mult
+elif [[ $1 = multiply ]]
+then
+    #confirm num arguments
+    if [[ $# -ne 2 ]] && [[ $# -ne 3 ]]
+    then
+        #if wrong number of arguments, return 1 and print to stderr 
+        echo "error-num arguments" 1>&2
+        exit 1
+    fi
+    #check to see if stdin needs to be called
+    if [[ $# = 2 ]]
+    then 
+        arg3='arg3' #create file 'arg3' with "pointer" variable arg2
+        cat > $arg3 #fill arg2 with stdin
+        Mult
+        rm $arg3 #remove the arg2 file
+        exit 0 #exit program, return 0 because no input issues
+    fi
+    arg2=$2 #if second argument is given, use it
+    arg3=$3 
+    #check to see if file is readable
+    if [[ -r $arg2 ]] && [[ -r $arg3 ]]
+    then
+        #if correct num args & readable, call function
+        Mult
+        exit 0 #exit program, return 0 because no input issues
+    else
+        echo "file unreadable" 1>&2
+        exit 2
+    fi
+fi
+
+#!/bin/bash
+
+arg2=$1
+row=2
+col=4
+#TODO get row col from dims
+
+temp_row='temp_row'
+temp_trans='temp_trans'
+#transpose of a matrix, $arg2
+touch $temp_trans
+touch $temp_row
+counter=1
+let final_count=$col+1
+while [ $counter -lt $final_count ]
+do
+    #cut counter column out of arg2
+    cat "$arg2" | cut -f$counter > $temp_row
+    #awk -v temp=$counter '{print $temp}' $arg2 > $temp_row
+    #replace newline with tabs
+    cat $temp_row | tr '\n' '\t' >> $temp_trans
+    echo "" >> $temp_trans
+    let counter=$counter+1 #increment by 1
+done
+
+cat $temp_trans
+rm temp_*
+#!/bin/bash
+
+arg2=$1
+row=2
+col=4
+#TODO get row col from dims
+
+temp_row='temp_row'
+temp_trans='temp_trans'
+#transpose of a matrix, $arg2
+touch $temp_trans
+touch $temp_row
+counter=1
+let final_count=$col+1
+while [ $counter -lt $final_count ]
+do
+    #cut counter column out of arg2
+    cat "$arg2" | cut -f$counter > $temp_row
+    #awk -v temp=$counter '{print $temp}' $arg2 > $temp_row
+    #replace newline with tabs
+    cat $temp_row | tr '\n' '\t' >> $temp_trans
+    echo "" >> $temp_trans
+    let counter=$counter+1 #increment by 1
+done
+
+cat $temp_trans
+rm temp_*
+#!/bin/bash
+
+arg2=$1
+row=2
+col=4
+#TODO get row col from dims
+
+temp_row='temp_row'
+temp_trans='temp_trans'
+#transpose of a matrix, $arg2
+touch $temp_trans
+touch $temp_row
+counter=1
+let final_count=$col+1
+while [ $counter -lt $final_count ]
+do
+    #cut counter column out of arg2
+    cat "$arg2" | cut -f$counter > $temp_row
+    #awk -v temp=$counter '{print $temp}' $arg2 > $temp_row
+    #replace newline with tabs
+    cat $temp_row | tr '\n' '\t' >> $temp_trans
+    echo "" >> $temp_trans
+    let counter=$counter+1 #increment by 1
+done
+
+cat $temp_trans
+rm temp_*

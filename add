@@ -1,0 +1,42 @@
+#!/bin/bash
+
+row=2
+col=2
+
+arg2=$1
+arg3=$2
+
+
+countc=1    #counter for columns, starts at 1
+temp_col1='temp_col1' #temporary file/place for column of matrix a
+temp_col2='temp_col2' #temp place for col of matrix b
+temp_row1='temp_row1' #temp place for row of matrix a
+temp_row2='temp_row2' #temp place for row of matrix b
+temp_colF='temp_colF' #temp place for final column
+temp_rowF='temp_rowF' #temp place for final row
+temp_final='temp_final' #temp file for final matrix
+
+while [ $countc -le $col ]
+do
+    cat "$arg2" | cut -f$countc > $temp_col1 #cut col of matrix b
+    cat "$arg3" | cut -f$countc > $temp_col2 #cut col of matrix b
+    cat $temp_col1 | tr '\n' '\t' > $temp_row1 #turn col to row
+    cat $temp_col2 | tr '\n' '\t' > $temp_row2 #turn col to row
+    countr=1
+    while [ $countr -le $row ]
+    do
+        numA=$( cut -f$countr $temp_row1 ) #cut index row,col
+        numB=$( cut -f$countr $temp_row2 ) #cut index row,col
+        numF=`expr $numA + $numB ` #add indicies
+        echo "$numF" >> $temp_colF
+        let countr=$countr+1 #increment row by 1
+    done
+    cat $temp_colF | tr '\n' '\t' > $temp_rowF #col -> row by replacing \n with \t
+    echo -e "" >> $temp_rowF
+    cat $temp_rowF >> $temp_final #add temp col to final
+    rm $temp_colF
+    let countc=$countc+1 #increment by 1
+done
+
+cat $temp_final
+rm temp_*

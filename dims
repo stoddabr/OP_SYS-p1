@@ -1,0 +1,22 @@
+#!/bin/bash
+
+
+#calculate number of rows and cols from $1
+row=0
+TMP=$2
+inc=1
+oneline=0
+
+while read num
+do
+    row=$(expr $row + $inc)
+    oneline=$num
+done < $TMP
+echo "num row is: $row"
+
+col=0
+for i in $oneline
+do
+    col=$(( $col + $inc ))
+done
+echo "num col is: $col"

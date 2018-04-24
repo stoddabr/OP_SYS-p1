@@ -1,0 +1,4 @@
+#!/bin/bash
+var=$(</dev/stdin)
+echo ""
+echo "$var"

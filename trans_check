@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ m1 == "matrix transpose m2" ]]
+then
+	echo "yay"
+fi
+echo "done"

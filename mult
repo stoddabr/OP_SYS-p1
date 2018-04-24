@@ -1,0 +1,19 @@
+#!/bin/bash
+
+rowa=2
+cola=2
+rowb=2
+colb=2
+
+
+arg2=$1
+arg3=$2
+
+#step 1 check sizes to make sure mult is possible
+if [[ $cola -ne $rowb  ]]
+then
+    #print error message to std err and return value 3
+    echo "wrong sized matrix" 1>&2
+    exit 3
+fi
+

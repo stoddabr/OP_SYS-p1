@@ -1,0 +1,27 @@
+#!/bin/bash
+
+arg2=$1
+row=2
+col=4
+#TODO get row col from dims
+
+temp_row='temp_row'
+temp_trans='temp_trans'
+#transpose of a matrix, $arg2
+touch $temp_trans
+touch $temp_row
+counter=1
+let final_count=$col+1
+while [ $counter -lt $final_count ]
+do
+    #cut counter column out of arg2
+    cat "$arg2" | cut -f$counter > $temp_row
+    #awk -v temp=$counter '{print $temp}' $arg2 > $temp_row
+    #replace newline with tabs
+    cat $temp_row | tr '\n' '\t' >> $temp_trans
+    echo "" >> $temp_trans
+    let counter=$counter+1 #increment by 1
+done
+
+cat $temp_trans
+rm temp_*
